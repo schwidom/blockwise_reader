@@ -23,7 +23,7 @@ impl<'a> BlockWiseReader<'a> {
   self.v.len() - self.pos
  }
 
- /// overall size of the internal vector is the same as available_bytes() + pos_get()
+ /// overall size of the internal vector, is the same as available_bytes() + pos_get()
  pub fn size( &self) -> usize {
   self.v.len()
  }
@@ -106,18 +106,22 @@ impl<'a> BlockWiseReader<'a> {
   self.v.extend(v3);
  }
 
+ /// returns all data from pos to the end of the internal vector
  pub fn get(&self) -> &[u8] {
   &self.v[self.pos..]
  }
 
+ /// returns all data from pos - back to pos of the internal vector
  pub fn get_back(&self, back: usize) -> &[u8] {
   &self.v[self.pos - back..]
  }
 
+ /// returns all data from the given pos to the end of the internal vector
  pub fn get_from(&self, pos: usize) -> &[u8] {
   &self.v[pos..]
  }
 
+ /// returns all data from the given pos to the internal pos 
  pub fn get_from_to_current(&self, pos: usize) -> &[u8] {
   &self.v[pos..self.pos]
  }
@@ -171,6 +175,7 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
+ /// the current pos value
  pub fn pos_get(&self) -> usize {
   self.pos
  }
@@ -207,5 +212,3 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 }
-
-// mod tests;

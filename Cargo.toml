@@ -2,6 +2,12 @@
 name = "blockwise_reader"
 version = "0.1.0"
 edition = "2021"
+authors = ["Frank Schwidom"]
+description = "Reading the first bytes and pre-parsing of large files or streams."
+documentation = "https://docs.rs/blockwise_reader"
+license-file = "LICENSE"
+homepage = "https://github.com/schwidom/blockwise_reader"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
