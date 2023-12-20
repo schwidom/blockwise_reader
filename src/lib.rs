@@ -12,7 +12,7 @@
 
  For any token or sequence of tokens you want to find you can decide how many bytes you want to read ahead.
  It can also be all of it if you are certain.
- 
+
  As soon as you have identified all parts you need, you can then continue to parse
  your gathered bytes by more advanced parsers like for instance nom, combine, chumsky or pest.
 
@@ -43,6 +43,7 @@ assert_eq!( "8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
 use memmem::{Searcher, TwoWaySearcher};
 use std::{io::Read, mem::swap};
 
+/// The BlockWiseReader holds the data which are read in to a specific point and a reader to read from
 pub struct BlockWiseReader<'a> {
  v: Vec<u8>,
  r: Box<dyn Read + 'a>,
@@ -50,6 +51,7 @@ pub struct BlockWiseReader<'a> {
 }
 
 impl<'a> BlockWiseReader<'a> {
+ /// creates a new BlockWiseReader from the given reader
  pub fn new(r: Box<dyn Read + 'a>) -> Self {
   Self {
    v: vec![],
@@ -102,27 +104,33 @@ impl<'a> BlockWiseReader<'a> {
   Ok(self.available_bytes())
  }
 
+ /// searches a byte in the available bytes
  pub fn find(&self, e: u8) -> Option<usize> {
   self.v[self.pos..].iter().position(|x| x == &e)
  }
 
+ /// searches a byte slice in the available bytes
  pub fn search(&self, bytes: &[u8]) -> Option<usize> {
   let search = TwoWaySearcher::new(bytes);
   search.search_in(&self.v[self.pos..])
  }
 
+ /// sets the internal position
  pub fn pos_set(&mut self, pos: usize) {
   self.pos = pos;
  }
 
+ /// adds to the internal position
  pub fn pos_add(&mut self, pos: usize) {
   self.pos += pos;
  }
 
+ /// subtracts from the internal position
  pub fn pos_sub(&mut self, pos: usize) {
   self.pos -= pos;
  }
 
+ /// adds to the internal position a positive or negative value
  pub fn pos_add_i(&mut self, pos: isize) {
   if pos >= 0 {
    self.pos_add(pos as usize)
@@ -191,7 +199,7 @@ impl<'a> BlockWiseReader<'a> {
   &self.get_back(len)[..len] == marker_str
  }
 
- /// sets pos to find position position + 1 if found
+ /// sets pos to find position + 1 if the byte was found in the available bytes
  pub fn slurp_find_repos1(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp(bytecount)?;
   Ok(match self.find(e) {
@@ -203,7 +211,7 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
- /// sets pos to find position if found
+ /// sets pos to find position if the byte was found in the available bytes
  pub fn slurp_find_repos0(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp(bytecount)?;
   Ok(match self.find(e) {
@@ -215,12 +223,12 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
- /// the current pos value
+ /// the current internal position value
  pub fn pos_get(&self) -> usize {
   self.pos
  }
 
- /// sets pos to find position if found
+ /// sets pos to find position if the byte slice was found in the available bytes
  pub fn slurp_search_repos0(
   &mut self,
   bytecount: usize,
@@ -236,7 +244,7 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
- /// sets pos after find position if found
+ /// sets pos after find position if the byte slice was found in the available bytes
  pub fn slurp_search_repos1(
   &mut self,
   bytecount: usize,
