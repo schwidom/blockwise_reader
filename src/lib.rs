@@ -209,23 +209,30 @@ impl<'a> BlockWiseReader<'a> {
 
  /// sets pos to find position + 1 if the byte was found in the available bytes
  pub fn slurp_find_repos1(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
-  self.slurp(bytecount)?;
-  Ok(match self.find(e) {
-   None => false,
-   Some(pos) => {
-    self.pos_add(pos + 1);
-    true
-   }
-  })
+  self.slurp_find_repos(bytecount, e, FindPos::End)
  }
 
  /// sets pos to find position if the byte was found in the available bytes
  pub fn slurp_find_repos0(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
+  self.slurp_find_repos(bytecount, e, FindPos::Begin)
+ }
+
+ /// sets pos regarding the fp flag if the byte was found in the available bytes
+ pub fn slurp_find_repos(
+  &mut self,
+  bytecount: usize,
+  e: u8,
+  fp: FindPos,
+ ) -> Result<bool, std::io::Error> {
   self.slurp(bytecount)?;
   Ok(match self.find(e) {
    None => false,
    Some(pos) => {
-    self.pos_add(pos);
+    let offset = match fp {
+     FindPos::Begin => 0,
+     FindPos::End => 1,
+    };
+    self.pos_add(pos + offset);
     true
    }
   })
@@ -254,7 +261,7 @@ impl<'a> BlockWiseReader<'a> {
   self.slurp_search_repos(bytecount, bytes, FindPos::End)
  }
 
- /// sets pos regarding the FindPos flag find position if the byte slice was found in the available bytes
+ /// sets pos regarding the fp flag find position if the byte slice was found in the available bytes
  pub fn slurp_search_repos(
   &mut self,
   bytecount: usize,
