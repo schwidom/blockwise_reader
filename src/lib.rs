@@ -44,6 +44,7 @@ use memmem::{Searcher, TwoWaySearcher};
 use std::{io::Read, mem::swap};
 
 /// this enum decides where to set the internal vector position after a search / find operation
+#[derive(Clone,Copy)]
 pub enum FindPos {
  /// set it to the begion of the search word or character
  Begin,
@@ -280,5 +281,28 @@ impl<'a> BlockWiseReader<'a> {
     true
    }
   })
+ }
+
+ /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the char was found.
+ pub fn slurp_find_loop(
+  &mut self,
+  buffersize: usize,
+  e: u8,
+  fp: FindPos,
+ ) -> Result<bool, std::io::Error> {
+  if 0 == buffersize { panic!("buffersize 0 leads to an infinite loop");}
+  let oldpos = self.pos;
+  loop {
+   if self.slurp_find_repos(buffersize, e, fp)? {
+    return Ok(true);
+   } else {
+    if buffersize > self.available_bytes() {
+     self.pos = oldpos;
+     return Ok(false);
+    } else {
+     self.pos_add(buffersize);
+    }
+   }
+  }
  }
 }

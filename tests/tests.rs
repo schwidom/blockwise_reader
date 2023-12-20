@@ -10,8 +10,12 @@ mod tests {
   let mut bwr = BlockWiseReader::new(Box::new(sr));
   assert_eq!(0, bwr.available_bytes());
   assert_eq!(0, bwr.pos_get());
+  assert_eq!(None, bwr.find(b'1'));
+  assert_eq!(None, bwr.search(&[b'1']));
   assert_eq!("".as_bytes(), bwr.get());
   assert_eq!(3, bwr.slurp(1000)?);
+  assert_eq!(Some(0), bwr.find(b'1'));
+  assert_eq!(Some(0), bwr.search(&[b'1']));
   assert_eq!(3, bwr.available_bytes());
   assert_eq!(0, bwr.pos_get());
   assert_eq!(3, bwr.size());
@@ -159,8 +163,53 @@ nameserver 8.8.8.8
   assert!(bwr.slurp_match_repos("nameserver ".as_bytes())?);
   let pos = bwr.pos_get();
   assert!(bwr.slurp_find_repos0(1024, b'\n')?);
-  assert_eq!( "8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
+  assert_eq!("8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
 
   Ok(())
+ }
+
+ #[test]
+ fn test_00b() -> Result<(), std::io::Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res = bwr.slurp_find_loop(i, b'5', blockwise_reader::FindPos::Begin)?;
+   assert!( res);
+   assert_eq!( 4, bwr.pos_get());
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_00b_3() -> Result<(), std::io::Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res = bwr.slurp_find_loop(i, b'5', blockwise_reader::FindPos::End)?;
+   assert!( res);
+   assert_eq!( 5, bwr.pos_get());
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_00b_2() -> Result<(), std::io::Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   bwr.pos_set( 1);
+   let res = bwr.slurp_find_loop(i, b'9', blockwise_reader::FindPos::Begin)?;
+   assert!( !res);
+   assert_eq!( 1, bwr.pos_get());
+  }
+  Ok(())
+ }
+
+ #[test]
+ #[should_panic]
+ fn test_00c() {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let _ = bwr.slurp_find_loop(0, b'5', blockwise_reader::FindPos::Begin);
  }
 }
