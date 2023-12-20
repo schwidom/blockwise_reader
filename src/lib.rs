@@ -38,7 +38,7 @@ assert_eq!( "8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
 
 ```
 
-Another example: 
+It is also possible to search blockwise to a matching fixed byte slice. But there is the risk that this byte slice never will appear in the stream.
 ```rust
 use stringreader::StringReader;
 use blockwise_reader::BlockWiseReader;
@@ -53,7 +53,7 @@ let sr = StringReader::new( r#"Lorem ipsum dolor sit amet, consectetur adipiscin
 
 let mut bwr = BlockWiseReader::new(Box::new(sr));
 
-assert!(bwr.slurp_search_repos_loop(1024, "laborum".as_bytes(), FindPos::Begin).unwrap());
+assert!(bwr.slurp_search_repos_loop(100, "laborum".as_bytes(), FindPos::Begin).unwrap());
 assert_eq!( 447, bwr.pos_get());
 
 ```

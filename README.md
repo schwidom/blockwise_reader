@@ -38,7 +38,7 @@ assert_eq!( "8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
 
 ```
 
-Another example: 
+It is also possible to search blockwise to a matching fixed byte slice. But there is the risk that this byte slice never will appear in the stream.
 ```rust
 use stringreader::StringReader;
 use blockwise_reader::BlockWiseReader;
