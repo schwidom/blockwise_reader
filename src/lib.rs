@@ -1,24 +1,23 @@
 #![allow(unused)]
 
 /*!
- The BlockWiseReader allows it to parse headers of files or streams where you
- not exactly know how many bytes you need to read to be able to continue to parse.
+The BlockWiseReader allows it to parse headers of files or streams where you
+not exactly know how many bytes you need to read to be able to continue to parse.
 
- So what you need is an educated guess for the amount you want to read.
+So what you need is an educated guess for the amount you want to read.
 
- The main task here is to avoid to read all the data before you begin to parse something.
+The main task here is to avoid to read all the data before you begin to parse something.
 
- Because there are cases where it is just too much.
+Because there are cases where it is just too much.
 
- For any token or sequence of tokens you want to find you can decide how many bytes you want to read ahead.
- It can also be all of it if you are certain.
+For any token or sequence of tokens you want to find you can decide how many bytes you want to read ahead.
+It can also be all of it if you are certain.
 
- As soon as you have identified all parts you need, you can then continue to parse
- your gathered bytes by more advanced parsers like for instance nom, combine, chumsky or pest.
+As soon as you have identified all parts you need, you can then continue to parse
+your gathered bytes by more advanced parsers like for instance nom, combine, chumsky or pest.
 
 ```rust
 use stringreader::StringReader;
-
 use blockwise_reader::BlockWiseReader;
 
 let sr = StringReader::new(
@@ -38,13 +37,33 @@ assert!(bwr.slurp_find_repos0(1024, b'\n').unwrap());
 assert_eq!( "8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
 
 ```
+
+Another example: 
+```rust
+use stringreader::StringReader;
+use blockwise_reader::BlockWiseReader;
+use blockwise_reader::FindPos;
+
+let sr = StringReader::new( r#"Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
+ sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+ Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip 
+ ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit 
+ esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat 
+ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."#);
+
+let mut bwr = BlockWiseReader::new(Box::new(sr));
+
+assert!(bwr.slurp_search_repos_loop(1024, "laborum".as_bytes(), FindPos::Begin).unwrap());
+assert_eq!( 447, bwr.pos_get());
+
+```
 */
 
 use memmem::{Searcher, TwoWaySearcher};
-use std::{io::Read, mem::swap};
+use std::{hash::BuildHasher, io::Read, mem::swap};
 
 /// this enum decides where to set the internal vector position after a search / find operation
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 pub enum FindPos {
  /// set it to the begion of the search word or character
  Begin,
@@ -57,6 +76,19 @@ pub struct BlockWiseReader<'a> {
  v: Vec<u8>,
  r: Box<dyn Read + 'a>,
  pos: usize,
+ eof: bool,
+}
+
+#[derive(Debug)]
+pub enum Error {
+ IO(std::io::Error),
+ Msg(&'static str),
+}
+
+impl From<std::io::Error> for Error {
+ fn from(value: std::io::Error) -> Self {
+  Self::IO(value)
+ }
 }
 
 impl<'a> BlockWiseReader<'a> {
@@ -66,6 +98,7 @@ impl<'a> BlockWiseReader<'a> {
    v: vec![],
    r,
    pos: 0,
+   eof: false,
   }
  }
 
@@ -94,6 +127,9 @@ impl<'a> BlockWiseReader<'a> {
   if rod < amount_to_read {
    self.v.truncate(read_start + rod);
   }
+  if rod == 0 {
+   self.eof = true;
+  }
   Ok(self.available_bytes())
  }
 
@@ -106,6 +142,9 @@ impl<'a> BlockWiseReader<'a> {
    let rod = self.r.read(&mut self.v[len..])?;
    if rod < buffersize {
     self.v.truncate(len + rod);
+   }
+   if rod == 0 {
+    self.eof = true;
     break;
    }
   }
@@ -208,17 +247,20 @@ impl<'a> BlockWiseReader<'a> {
   &self.get_back(len)[..len] == marker_str
  }
 
- /// sets pos to find position + 1 if the byte was found in the available bytes
+ /// Sets pos to find position + 1 if the byte was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
  pub fn slurp_find_repos1(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp_find_repos(bytecount, e, FindPos::End)
  }
 
- /// sets pos to find position if the byte was found in the available bytes
+ /// Sets pos to find position if the byte was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
  pub fn slurp_find_repos0(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp_find_repos(bytecount, e, FindPos::Begin)
  }
 
- /// sets pos regarding the fp flag if the byte was found in the available bytes
+ /// Sets pos regarding the fp flag if the byte was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
  pub fn slurp_find_repos(
   &mut self,
   bytecount: usize,
@@ -244,7 +286,8 @@ impl<'a> BlockWiseReader<'a> {
   self.pos
  }
 
- /// sets pos to find position if the byte slice was found in the available bytes
+ /// Sets pos to find position if the byte slice was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
  pub fn slurp_search_repos0(
   &mut self,
   bytecount: usize,
@@ -253,7 +296,8 @@ impl<'a> BlockWiseReader<'a> {
   self.slurp_search_repos(bytecount, bytes, FindPos::Begin)
  }
 
- /// sets pos after find position if the byte slice was found in the available bytes
+ /// Sets pos after find position if the byte slice was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
  pub fn slurp_search_repos1(
   &mut self,
   bytecount: usize,
@@ -262,7 +306,8 @@ impl<'a> BlockWiseReader<'a> {
   self.slurp_search_repos(bytecount, bytes, FindPos::End)
  }
 
- /// sets pos regarding the fp flag find position if the byte slice was found in the available bytes
+ /// Sets pos regarding the fp flag find position if the byte slice was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
  pub fn slurp_search_repos(
   &mut self,
   bytecount: usize,
@@ -284,25 +329,59 @@ impl<'a> BlockWiseReader<'a> {
  }
 
  /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the char was found.
- pub fn slurp_find_loop(
-  &mut self,
-  buffersize: usize,
-  e: u8,
-  fp: FindPos,
- ) -> Result<bool, std::io::Error> {
-  if 0 == buffersize { panic!("buffersize 0 leads to an infinite loop");}
+ pub fn slurp_find_repos_loop(&mut self, buffersize: usize, e: u8, fp: FindPos) -> Result<bool, Error> {
+  if 0 == buffersize {
+   return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
+  }
   let oldpos = self.pos;
   loop {
    if self.slurp_find_repos(buffersize, e, fp)? {
     return Ok(true);
    } else {
-    if buffersize > self.available_bytes() {
+    if self.eof {
      self.pos = oldpos;
      return Ok(false);
     } else {
-     self.pos_add(buffersize);
+     self.pos_add(self.available_bytes());
     }
    }
   }
+ }
+
+ /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the byte slice was found.
+ /// The buffer must be bigger than the byte slice.
+ pub fn slurp_search_repos_loop(
+  &mut self,
+  buffersize: usize,
+  bytes: &[u8],
+  fp: FindPos,
+ ) -> Result<bool, Error> {
+  if 0 == buffersize {
+   return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
+  }
+  if buffersize <= bytes.len() {
+   return Err(Error::Msg("error: buffersize <= bytes.len()"));
+  }
+  let oldpos = self.pos;
+  let mut offset = 0;
+  loop {
+   if self.slurp_search_repos(buffersize + offset, bytes, fp)? {
+    return Ok(true);
+   } else {
+    if self.eof {
+     self.pos = oldpos;
+     return Ok(false);
+    } else {
+     self.pos_add(self.available_bytes());
+     offset = bytes.len() - 1;
+     self.pos_sub(offset);
+    }
+   }
+  }
+ }
+
+ /// returns true if eof is reached
+ fn eof(&self) -> bool {
+  self.eof
  }
 }

@@ -3,6 +3,7 @@ mod tests {
  use stringreader::StringReader;
 
  use blockwise_reader::BlockWiseReader;
+ use blockwise_reader::Error;
 
  #[test]
  fn test001() -> Result<(), std::io::Error> {
@@ -137,7 +138,7 @@ mod tests {
  }
 
  #[test]
- fn test00a() -> Result<(), std::io::Error> {
+ fn test_slurp_loop() -> Result<(), std::io::Error> {
   let sr = StringReader::new("123456");
   let mut bwr = BlockWiseReader::new(Box::new(sr));
   assert_eq!(6, bwr.slurp_loop(1)?);
@@ -169,11 +170,11 @@ nameserver 8.8.8.8
  }
 
  #[test]
- fn test_00b() -> Result<(), std::io::Error> {
+ fn test_00b() -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let res = bwr.slurp_find_loop(i, b'5', blockwise_reader::FindPos::Begin)?;
+   let res = bwr.slurp_find_repos_loop(i, b'5', blockwise_reader::FindPos::Begin)?;
    assert!( res);
    assert_eq!( 4, bwr.pos_get());
   }
@@ -181,11 +182,11 @@ nameserver 8.8.8.8
  }
 
  #[test]
- fn test_00b_3() -> Result<(), std::io::Error> {
+ fn test_00b_3() -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let res = bwr.slurp_find_loop(i, b'5', blockwise_reader::FindPos::End)?;
+   let res = bwr.slurp_find_repos_loop(i, b'5', blockwise_reader::FindPos::End)?;
    assert!( res);
    assert_eq!( 5, bwr.pos_get());
   }
@@ -193,12 +194,25 @@ nameserver 8.8.8.8
  }
 
  #[test]
- fn test_00b_2() -> Result<(), std::io::Error> {
+ fn test_00b_3_2() -> Result<(), Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   assert_eq!( 4, bwr.slurp(4)?);
+   let res = bwr.slurp_find_repos_loop(i, b'5', blockwise_reader::FindPos::End)?;
+   assert!( res);
+   assert_eq!( 5, bwr.pos_get());
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_00b_2() -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
    bwr.pos_set( 1);
-   let res = bwr.slurp_find_loop(i, b'9', blockwise_reader::FindPos::Begin)?;
+   let res = bwr.slurp_find_repos_loop(i, b'9', blockwise_reader::FindPos::Begin)?;
    assert!( !res);
    assert_eq!( 1, bwr.pos_get());
   }
@@ -206,10 +220,39 @@ nameserver 8.8.8.8
  }
 
  #[test]
- #[should_panic]
  fn test_00c() {
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let _ = bwr.slurp_find_loop(0, b'5', blockwise_reader::FindPos::Begin);
+   let res = bwr.slurp_find_repos_loop(0, b'5', blockwise_reader::FindPos::Begin);
+   // assert_eq!(res, Err(Error::Msg("")));
+   match res {
+    Err(Error::Msg(x)) => assert_eq!( x, "buffersize 0 leads to an infinite loop"),
+    _ => panic!(),
+   }
  }
+
+ #[test]
+ fn test_00d() -> Result<(), Error> {
+  for i in 3..10 {
+   let sr = StringReader::new("123456789");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res = bwr.slurp_search_repos_loop(i, "67".as_bytes(), blockwise_reader::FindPos::Begin)?;
+   assert!( res);
+   assert_eq!( 5, bwr.pos_get());
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_00d_2() -> Result<(), Error> {
+  for i in 3..10 {
+   let sr = StringReader::new("123456789");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res = bwr.slurp_search_repos_loop(i, "67".as_bytes(), blockwise_reader::FindPos::End)?;
+   assert!( res);
+   assert_eq!( 7, bwr.pos_get());
+  }
+  Ok(())
+ }
+
 }
