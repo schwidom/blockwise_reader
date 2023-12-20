@@ -43,6 +43,14 @@ assert_eq!( "8.8.8.8".as_bytes(), bwr.get_from_to_current(pos));
 use memmem::{Searcher, TwoWaySearcher};
 use std::{io::Read, mem::swap};
 
+/// this enum decides where to set the internal vector position after a search / find operation
+pub enum FindPos {
+ /// set it to the begion of the search word or character
+ Begin,
+ /// set it to the end of the search word or character
+ End,
+}
+
 /// The BlockWiseReader holds the data which are read in to a specific point and a reader to read from
 pub struct BlockWiseReader<'a> {
  v: Vec<u8>,
@@ -234,14 +242,7 @@ impl<'a> BlockWiseReader<'a> {
   bytecount: usize,
   bytes: &[u8],
  ) -> Result<bool, std::io::Error> {
-  self.slurp(bytecount);
-  Ok(match self.search(bytes) {
-   None => false,
-   Some(pos) => {
-    self.pos_add(pos);
-    true
-   }
-  })
+  self.slurp_search_repos(bytecount, bytes, FindPos::Begin)
  }
 
  /// sets pos after find position if the byte slice was found in the available bytes
@@ -250,11 +251,25 @@ impl<'a> BlockWiseReader<'a> {
   bytecount: usize,
   bytes: &[u8],
  ) -> Result<bool, std::io::Error> {
+  self.slurp_search_repos(bytecount, bytes, FindPos::End)
+ }
+
+ /// sets pos regarding the FindPos flag find position if the byte slice was found in the available bytes
+ pub fn slurp_search_repos(
+  &mut self,
+  bytecount: usize,
+  bytes: &[u8],
+  fp: FindPos,
+ ) -> Result<bool, std::io::Error> {
   self.slurp(bytecount);
   Ok(match self.search(bytes) {
    None => false,
    Some(pos) => {
-    self.pos_add(pos + bytes.len());
+    let offset = match fp {
+     FindPos::Begin => 0,
+     FindPos::End => bytes.len(),
+    };
+    self.pos_add(pos + offset);
     true
    }
   })
