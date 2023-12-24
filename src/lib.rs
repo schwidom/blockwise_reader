@@ -44,24 +44,29 @@ use stringreader::StringReader;
 use blockwise_reader::BlockWiseReader;
 use blockwise_reader::FindPos;
 
-let sr = StringReader::new( r#"Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
- sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
- Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip 
- ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit 
- esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat 
+let sr = StringReader::new( r#"Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+ sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+ Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
+ ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit
+ esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
  non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."#);
 
 let mut bwr = BlockWiseReader::new(Box::new(sr));
 
 // reads repeatedly 100 byte blocks and stops if match appears
 assert!(bwr.slurp_search_repos_loop(100, "laborum".as_bytes(), FindPos::Begin).unwrap());
-assert_eq!( 447, bwr.pos_get());
+assert_eq!( 442, bwr.pos_get());
+
+// ( Btw. When this value here changes over time this means the sourcecode formatter changed
+// the code in the documentation, which is a bug in my opinion. The sourcecode formatter
+// should not change things in strings and comments.)
+
 
 ```
 */
 
 use memmem::{Searcher, TwoWaySearcher};
-use std::{hash::BuildHasher, io::Read, mem::swap};
+use std::{cmp::min, hash::BuildHasher, io::Read, mem::swap};
 
 /// this enum decides where to set the internal vector position after a search / find operation
 #[derive(Clone, Copy)]
@@ -282,6 +287,48 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
+ /// Sets pos regarding the fp flag if one pf the the bytes was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
+ /// Finds the nearest byte if cut is false.
+ /// The parameter cut stops searching if a byte was found.
+ pub fn slurp_find_multiple_repos(
+  &mut self,
+  bytecount: usize,
+  se: &[u8],
+  cut: bool,
+  fp: FindPos,
+ ) -> Result<bool, std::io::Error> {
+  self.slurp(bytecount)?;
+  let current_pos = self.pos_get();
+
+  let mut foundpos: Option<usize> = None;
+  // TODO optimization : shorter search if previously found something
+  for e in se {
+   if self.slurp_find_repos(bytecount, *e, FindPos::Begin)? {
+    match foundpos {
+     None => foundpos = Some(self.pos),
+     Some(some_foundpos) => foundpos = Some(min(some_foundpos, self.pos)),
+    }
+    self.pos = current_pos;
+
+    if cut {
+     break;
+    }
+   }
+  }
+
+  match foundpos {
+   None => Ok(false),
+   Some(foundpos) => {
+    match fp {
+     FindPos::Begin => self.pos = foundpos,
+     FindPos::End => self.pos = foundpos + 1,
+    }
+    Ok(true)
+   }
+  }
+ }
+
  /// the current internal position value
  pub fn pos_get(&self) -> usize {
   self.pos
@@ -330,7 +377,12 @@ impl<'a> BlockWiseReader<'a> {
  }
 
  /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the char was found.
- pub fn slurp_find_repos_loop(&mut self, buffersize: usize, e: u8, fp: FindPos) -> Result<bool, Error> {
+ pub fn slurp_find_repos_loop(
+  &mut self,
+  buffersize: usize,
+  e: u8,
+  fp: FindPos,
+ ) -> Result<bool, Error> {
   if 0 == buffersize {
    return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
   }
