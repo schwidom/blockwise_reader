@@ -274,6 +274,24 @@ nameserver 8.8.8.8
  }
 
  #[test]
+ fn test_00e_3() -> Result<(), Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res =
+    bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], false, blockwise_reader::FindPos::End)?;
+   if i < 4 {
+    assert!(!res);
+    assert_eq!(0, bwr.pos_get());
+   } else {
+    assert!(res);
+    assert_eq!(4, bwr.pos_get());
+   }
+  }
+  Ok(())
+ }
+
+ #[test]
  fn test_00e_2() -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
@@ -290,6 +308,28 @@ nameserver 8.8.8.8
    } else {
     assert!(res);
     assert_eq!(4, bwr.pos_get());
+   }
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_00e_4() -> Result<(), Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res =
+    bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], true, blockwise_reader::FindPos::End)?;
+   println!("i: {}", i);
+   if i < 4 {
+    assert!(!res);
+    assert_eq!(0, bwr.pos_get());
+   } else if i < 5 {
+    assert!(res);
+    assert_eq!(4, bwr.pos_get());
+   } else {
+    assert!(res);
+    assert_eq!(5, bwr.pos_get());
    }
   }
   Ok(())
