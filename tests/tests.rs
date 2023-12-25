@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+ use blockwise_reader::FindPos;
+ use blockwise_reader::PatternIdx;
  use stringreader::StringReader;
 
  use blockwise_reader::BlockWiseReader;
@@ -255,83 +257,123 @@ nameserver 8.8.8.8
   Ok(())
  }
 
- #[test]
- fn test_00e() -> Result<(), Error> {
+ fn slurp_find_multiple_repos_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let res =
-    bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], false, blockwise_reader::FindPos::Begin)?;
-   if i < 4 {
-    assert!(!res);
-    assert_eq!(0, bwr.pos_get());
-   } else {
-    assert!(res);
-    assert_eq!(3, bwr.pos_get());
+   let res = bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], cut, fp)?;
+
+   match (i < 4, i < 5, cut, fp) {
+    (true, _, _, _) => {
+     assert!(!res);
+     assert_eq!(0, bwr.pos_get());
+    }
+    (false, _, false, FindPos::Begin) => {
+     assert!(res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (false, _, false, FindPos::End) => {
+     assert!(res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::Begin) => {
+     assert!(res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (_, false, true, FindPos::Begin) => {
+     assert!(res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::End) => {
+     assert!(res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (_, false, true, FindPos::End) => {
+     assert!(res);
+     assert_eq!(5, bwr.pos_get());
+    } // _ => panic!(),
    }
   }
   Ok(())
+ }
+
+ #[test]
+ fn test_00e() -> Result<(), Error> {
+  slurp_find_multiple_repos_tests(false, FindPos::Begin)
  }
 
  #[test]
  fn test_00e_3() -> Result<(), Error> {
-  for i in 1..7 {
-   let sr = StringReader::new("123456");
-   let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let res =
-    bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], false, blockwise_reader::FindPos::End)?;
-   if i < 4 {
-    assert!(!res);
-    assert_eq!(0, bwr.pos_get());
-   } else {
-    assert!(res);
-    assert_eq!(4, bwr.pos_get());
-   }
-  }
-  Ok(())
+  slurp_find_multiple_repos_tests(false, FindPos::End)
  }
 
  #[test]
  fn test_00e_2() -> Result<(), Error> {
+  slurp_find_multiple_repos_tests(true, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_00e_4() -> Result<(), Error> {
+  slurp_find_multiple_repos_tests(true, FindPos::End)
+ }
+
+ fn slurp_find_multiple_repos_idx_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let res =
-    bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], true, blockwise_reader::FindPos::Begin)?;
-   println!("i: {}", i);
-   if i < 4 {
-    assert!(!res);
-    assert_eq!(0, bwr.pos_get());
-   } else if i < 5 {
-    assert!(res);
-    assert_eq!(3, bwr.pos_get());
-   } else {
-    assert!(res);
-    assert_eq!(4, bwr.pos_get());
+   let res = bwr.slurp_find_multiple_repos_idx(i, &[b'5', b'4'], cut, fp)?;
+
+   match (i < 4, i < 5, cut, fp) {
+    (true, _, _, _) => {
+     assert_eq!(None, res);
+     assert_eq!(0, bwr.pos_get());
+    }
+    (false, _, false, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (false, _, false, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (_, false, true, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (_, false, true, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(5, bwr.pos_get());
+    } // _ => panic!(),
    }
   }
   Ok(())
  }
 
  #[test]
- fn test_00e_4() -> Result<(), Error> {
-  for i in 1..7 {
-   let sr = StringReader::new("123456");
-   let mut bwr = BlockWiseReader::new(Box::new(sr));
-   let res =
-    bwr.slurp_find_multiple_repos(i, &[b'5', b'4'], true, blockwise_reader::FindPos::End)?;
-   println!("i: {}", i);
-   if i < 4 {
-    assert!(!res);
-    assert_eq!(0, bwr.pos_get());
-   } else if i < 5 {
-    assert!(res);
-    assert_eq!(4, bwr.pos_get());
-   } else {
-    assert!(res);
-    assert_eq!(5, bwr.pos_get());
-   }
-  }
-  Ok(())
+ fn test_slurp_find_multiple_repos_idx_001() -> Result<(), Error> {
+  slurp_find_multiple_repos_idx_tests(false, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_idx_002() -> Result<(), Error> {
+  slurp_find_multiple_repos_idx_tests(false, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_idx_003() -> Result<(), Error> {
+  slurp_find_multiple_repos_idx_tests(true, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_idx_004() -> Result<(), Error> {
+  slurp_find_multiple_repos_idx_tests(true, FindPos::End)
  }
 }

@@ -97,6 +97,32 @@ impl From<std::io::Error> for Error {
  }
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+pub struct PatternIdx {
+ pub idx: usize,
+}
+
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+struct BufferIdx {
+ idx: usize,
+}
+
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+struct Finding {
+ pi: PatternIdx,
+ bi: BufferIdx,
+}
+
+impl<'a> Finding {
+ fn min(&'a self, other: &'a Self) -> &'a Self {
+  if self.bi <= other.bi {
+   self
+  } else {
+   other
+  }
+ }
+}
+
 impl<'a> BlockWiseReader<'a> {
  /// creates a new BlockWiseReader from the given reader
  pub fn new(r: Box<dyn Read + 'a>) -> Self {
@@ -325,6 +351,53 @@ impl<'a> BlockWiseReader<'a> {
      FindPos::End => self.pos = foundpos + 1,
     }
     Ok(true)
+   }
+  }
+ }
+
+ /// Sets pos regarding the fp flag if one pf the the bytes was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
+ /// Finds the nearest byte if cut is false.
+ /// The parameter cut stops searching if a byte was found.
+ /// Returns the idx of the matched pattern.
+ pub fn slurp_find_multiple_repos_idx(
+  &mut self,
+  bytecount: usize,
+  se: &[u8],
+  cut: bool,
+  fp: FindPos,
+ ) -> Result<Option<PatternIdx>, std::io::Error> {
+  self.slurp(bytecount)?;
+  let current_pos = self.pos_get();
+
+  let mut foundpos: Option<Finding> = None;
+  // TODO optimization : shorter search if previously found something
+  for (idx, e) in se.iter().enumerate() {
+   if self.slurp_find_repos(bytecount, *e, FindPos::Begin)? {
+    let finding = Finding {
+     pi: PatternIdx { idx },
+     bi: BufferIdx { idx: self.pos },
+    };
+    match foundpos {
+     None => foundpos = Some(finding),
+     Some(some_foundpos) => foundpos = Some(*some_foundpos.min(&finding)),
+    }
+    self.pos = current_pos;
+
+    if cut {
+     break;
+    }
+   }
+  }
+
+  match foundpos {
+   None => Ok(None),
+   Some(foundpos) => {
+    match fp {
+     FindPos::Begin => self.pos = foundpos.bi.idx,
+     FindPos::End => self.pos = foundpos.bi.idx + 1,
+    }
+    Ok(Some(foundpos.pi))
    }
   }
  }
