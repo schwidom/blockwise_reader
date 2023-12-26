@@ -313,7 +313,7 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
- /// Sets pos regarding the fp flag if one pf the the bytes was found in the available bytes.
+ /// Sets pos regarding the fp flag if one of the the bytes was found in the available bytes.
  /// If nothing was found pos remains unaltered.
  /// Finds the nearest byte if cut is false.
  /// The parameter cut stops searching if a byte was found.
@@ -355,7 +355,7 @@ impl<'a> BlockWiseReader<'a> {
   }
  }
 
- /// Sets pos regarding the fp flag if one pf the the bytes was found in the available bytes.
+ /// Sets pos regarding the fp flag if one of the the bytes was found in the available bytes.
  /// If nothing was found pos remains unaltered.
  /// Finds the nearest byte if cut is false.
  /// The parameter cut stops searching if a byte was found.
@@ -447,6 +447,53 @@ impl<'a> BlockWiseReader<'a> {
     true
    }
   })
+ }
+
+ /// Sets pos regarding the fp flag if one of the the bytes was found in the available bytes.
+ /// If nothing was found pos remains unaltered.
+ /// Finds the nearest byte slice if cut is false.
+ /// The parameter cut stops searching if a byte slice was found.
+ /// Returns the idx of the matched pattern.
+ pub fn slurp_search_multiple_repos_idx(
+  &mut self,
+  bytecount: usize,
+  sbytes: &[&[u8]],
+  cut: bool,
+  fp: FindPos,
+ ) -> Result<Option<PatternIdx>, std::io::Error> {
+  self.slurp(bytecount)?;
+  let current_pos = self.pos_get();
+
+  let mut foundpos: Option<Finding> = None;
+  // TODO optimization : shorter search if previously found something
+  for (idx, bytes) in sbytes.iter().enumerate() {
+   if self.slurp_search_repos(bytecount, *bytes, FindPos::Begin)? {
+    let finding = Finding {
+     pi: PatternIdx { idx },
+     bi: BufferIdx { idx: self.pos },
+    };
+    match foundpos {
+     None => foundpos = Some(finding),
+     Some(some_foundpos) => foundpos = Some(*some_foundpos.min(&finding)),
+    }
+    self.pos = current_pos;
+
+    if cut {
+     break;
+    }
+   }
+  }
+
+  match foundpos {
+   None => Ok(None),
+   Some(foundpos) => {
+    match fp {
+     FindPos::Begin => self.pos = foundpos.bi.idx,
+     FindPos::End => self.pos = foundpos.bi.idx + sbytes[foundpos.pi.idx].len(),
+    }
+    Ok(Some(foundpos.pi))
+   }
+  }
  }
 
  /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the char was found.

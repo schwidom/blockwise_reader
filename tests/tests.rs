@@ -376,4 +376,66 @@ nameserver 8.8.8.8
  fn test_slurp_find_multiple_repos_idx_004() -> Result<(), Error> {
   slurp_find_multiple_repos_idx_tests(true, FindPos::End)
  }
+
+ fn slurp_search_multiple_repos_idx_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res =
+    bwr.slurp_search_multiple_repos_idx(i, &["56".as_bytes(), "45".as_bytes()], cut, fp)?;
+
+   println!("i:{i}");
+   match (i < 5, i < 6, cut, fp) {
+    (true, _, _, _) => {
+     assert_eq!(None, res);
+     assert_eq!(0, bwr.pos_get());
+    }
+    (false, _, false, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (false, _, false, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(5, bwr.pos_get());
+    }
+    (false, true, true, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (_, false, true, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(5, bwr.pos_get());
+    }
+    (_, false, true, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(6, bwr.pos_get());
+    } // _ => panic!(),
+   }
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_idx_001() -> Result<(), Error> {
+  slurp_search_multiple_repos_idx_tests(false, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_idx_002() -> Result<(), Error> {
+  slurp_search_multiple_repos_idx_tests(false, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_idx_003() -> Result<(), Error> {
+  slurp_search_multiple_repos_idx_tests(true, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_idx_004() -> Result<(), Error> {
+  slurp_search_multiple_repos_idx_tests(true, FindPos::End)
+ }
 }
