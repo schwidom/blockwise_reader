@@ -438,4 +438,91 @@ nameserver 8.8.8.8
  fn test_slurp_search_multiple_repos_idx_004() -> Result<(), Error> {
   slurp_search_multiple_repos_idx_tests(true, FindPos::End)
  }
+
+ fn slurp_search_multiple_repos_loop_idx_tests(cut: bool, fp: FindPos) {
+  for i in 0..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res =
+    bwr.slurp_search_multiple_repos_loop_idx(i, &["56".as_bytes(), "45".as_bytes()], cut, fp);
+
+   println!("i:{i}");
+   match (i < 5, i < 6, cut, fp, res) {
+    (_, _, _, _, Err(Error::Msg(err))) => {
+     if i == 0 {
+      assert_eq!("buffersize 0 leads to an infinite loop", err);
+     } else if i <= 2 {
+      assert_eq!("error: buffersize <= bytes.len()", err);
+     } else {
+      println!("err: {:?}", err);
+      panic!();
+     }
+     // todo!()
+    }
+    (_, _, _, _, Err(Error::IO(_))) => {
+     panic!()
+    }
+    (true, _, false, FindPos::Begin, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (true, _, false, FindPos::End, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(5, bwr.pos_get());
+    }
+    (true, _, true, FindPos::Begin, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (true, _, true, FindPos::End, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(6, bwr.pos_get());
+    }
+    (false, _, false, FindPos::Begin, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (false, _, false, FindPos::End, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(5, bwr.pos_get());
+    }
+    (false, true, true, FindPos::Begin, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (_, false, true, FindPos::Begin, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::End, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(5, bwr.pos_get());
+    }
+    (_, false, true, FindPos::End, Ok(res)) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(6, bwr.pos_get());
+    } // _ => panic!(),
+   }
+  }
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_001() {
+  slurp_search_multiple_repos_loop_idx_tests(false, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_002() {
+  slurp_search_multiple_repos_loop_idx_tests(false, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_003() {
+  slurp_search_multiple_repos_loop_idx_tests(true, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_004() {
+  slurp_search_multiple_repos_loop_idx_tests(true, FindPos::End)
+ }
 }

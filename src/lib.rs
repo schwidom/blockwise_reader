@@ -66,7 +66,12 @@ assert_eq!( 442, bwr.pos_get());
 */
 
 use memmem::{Searcher, TwoWaySearcher};
-use std::{cmp::min, hash::BuildHasher, io::Read, mem::swap};
+use std::{
+ cmp::{max, min},
+ hash::BuildHasher,
+ io::Read,
+ mem::swap,
+};
 
 /// this enum decides where to set the internal vector position after a search / find operation
 #[derive(Clone, Copy)]
@@ -547,6 +552,43 @@ impl<'a> BlockWiseReader<'a> {
     } else {
      self.pos_add(self.available_bytes());
      offset = bytes.len() - 1;
+     self.pos_sub(offset);
+    }
+   }
+  }
+ }
+
+ pub fn slurp_search_multiple_repos_loop_idx(
+  &mut self,
+  buffersize: usize,
+  sbytes: &[&[u8]],
+  cut: bool,
+  fp: FindPos,
+ ) -> Result<Option<PatternIdx>, Error> {
+  if 0 == buffersize {
+   return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
+  }
+  let mut max_bytes_len: usize = 0;
+  for bytes in sbytes {
+   max_bytes_len = max(max_bytes_len, bytes.len());
+   if buffersize <= bytes.len() {
+    return Err(Error::Msg("error: buffersize <= bytes.len()"));
+   }
+  }
+  let oldpos = self.pos;
+  let mut offset = 0;
+  loop {
+   if let Some(pattern_idx) =
+    self.slurp_search_multiple_repos_idx(buffersize + offset, sbytes, cut, fp)?
+   {
+    return Ok(Some(pattern_idx));
+   } else {
+    if self.eof {
+     self.pos = oldpos;
+     return Ok(None);
+    } else {
+     self.pos_add(self.available_bytes());
+     offset = max_bytes_len - 1;
      self.pos_sub(offset);
     }
    }
