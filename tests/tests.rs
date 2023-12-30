@@ -444,14 +444,14 @@ nameserver 8.8.8.8
    let sr = StringReader::new("123456");
    let mut bwr = BlockWiseReader::new(Box::new(sr));
    let res =
-    bwr.slurp_search_multiple_repos_loop_idx(i, &["56".as_bytes(), "45".as_bytes()], cut, fp);
+    bwr.slurp_search_multiple_repos_loop_idx(i, &["56".as_bytes(), "456".as_bytes()], cut, fp);
 
    println!("i:{i}");
    match (i < 5, i < 6, cut, fp, res) {
     (_, _, _, _, Err(Error::Msg(err))) => {
      if i == 0 {
       assert_eq!("buffersize 0 leads to an infinite loop", err);
-     } else if i <= 2 {
+     } else if i <= 3 {
       assert_eq!("error: buffersize <= bytes.len()", err);
      } else {
       println!("err: {:?}", err);
@@ -468,7 +468,7 @@ nameserver 8.8.8.8
     }
     (true, _, false, FindPos::End, Ok(res)) => {
      assert_eq!(Some(PatternIdx { idx: 1 }), res);
-     assert_eq!(5, bwr.pos_get());
+     assert_eq!(6, bwr.pos_get());
     }
     (true, _, true, FindPos::Begin, Ok(res)) => {
      assert_eq!(Some(PatternIdx { idx: 0 }), res);
@@ -484,19 +484,19 @@ nameserver 8.8.8.8
     }
     (false, _, false, FindPos::End, Ok(res)) => {
      assert_eq!(Some(PatternIdx { idx: 1 }), res);
-     assert_eq!(5, bwr.pos_get());
+     assert_eq!(6, bwr.pos_get());
     }
     (false, true, true, FindPos::Begin, Ok(res)) => {
-     assert_eq!(Some(PatternIdx { idx: 1 }), res);
-     assert_eq!(3, bwr.pos_get());
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(4, bwr.pos_get());
     }
     (_, false, true, FindPos::Begin, Ok(res)) => {
      assert_eq!(Some(PatternIdx { idx: 0 }), res);
      assert_eq!(4, bwr.pos_get());
     }
     (false, true, true, FindPos::End, Ok(res)) => {
-     assert_eq!(Some(PatternIdx { idx: 1 }), res);
-     assert_eq!(5, bwr.pos_get());
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(6, bwr.pos_get());
     }
     (_, false, true, FindPos::End, Ok(res)) => {
      assert_eq!(Some(PatternIdx { idx: 0 }), res);
