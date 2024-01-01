@@ -525,4 +525,80 @@ nameserver 8.8.8.8
  fn test_slurp_search_multiple_repos_loop_idx_004() {
   slurp_search_multiple_repos_loop_idx_tests(true, FindPos::End)
  }
+
+ fn slurp_find_multiple_repos_loop_idx_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   let res = bwr.slurp_find_multiple_repos_loop_idx(i, &[b'5', b'4'], cut, fp)?;
+   println!("i:{i}");
+   match (i < 4, i < 5, cut, fp) {
+    (true, true, true, FindPos::Begin) => match [1, 2].contains(&i) {
+     true => {
+      assert_eq!(Some(PatternIdx { idx: 1 }), res);
+      assert_eq!(3, bwr.pos_get());
+     }
+     false => {
+      assert_eq!(Some(PatternIdx { idx: 0 }), res);
+      assert_eq!(4, bwr.pos_get());
+     }
+    },
+    (true, true, true, FindPos::End) => match [1, 2].contains(&i) {
+     true => {
+      assert_eq!(Some(PatternIdx { idx: 1 }), res);
+      assert_eq!(4, bwr.pos_get());
+     }
+     false => {
+      assert_eq!(Some(PatternIdx { idx: 0 }), res);
+      assert_eq!(5, bwr.pos_get());
+     }
+    },
+    (_, _, false, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (_, _, false, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(3, bwr.pos_get());
+    }
+    (_, false, true, FindPos::Begin) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (false, true, true, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 1 }), res);
+     assert_eq!(4, bwr.pos_get());
+    }
+    (_, false, true, FindPos::End) => {
+     assert_eq!(Some(PatternIdx { idx: 0 }), res);
+     assert_eq!(5, bwr.pos_get());
+    } // _ => panic!(),
+   }
+  }
+  Ok(())
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_loop_idx_001() -> Result<(), Error> {
+  slurp_find_multiple_repos_loop_idx_tests(false, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_loop_idx_002() -> Result<(), Error> {
+  slurp_find_multiple_repos_loop_idx_tests(false, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_loop_idx_003() -> Result<(), Error> {
+  slurp_find_multiple_repos_loop_idx_tests(true, FindPos::Begin)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_loop_idx_004() -> Result<(), Error> {
+  slurp_find_multiple_repos_loop_idx_tests(true, FindPos::End)
+ }
 }

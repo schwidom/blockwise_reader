@@ -149,9 +149,10 @@ impl<'a> BlockWiseReader<'a> {
   self.v.len()
  }
 
- /// Reads bytecount bytes from the stream and returns the amount of available bytes starting at pos,
- /// which can be more than bytecount when subsequently already read more, but also less
- /// if there were not enough available.
+ /// Tries to continue reading bytes from the stream, so that at least bytecount bytes from the
+ /// current position ahead are available. This doesn't man it reads exactly bytecount bytes if there already
+ /// bytes available. It can also happen that it reads lesser than needed if it encounters an end of file.
+ /// Returns the amount of available bytes starting at pos.
  pub fn slurp(&mut self, bytecount: usize) -> Result<usize, std::io::Error> {
   let pos = self.pos;
   let read_start = self.v.len();
@@ -284,20 +285,20 @@ impl<'a> BlockWiseReader<'a> {
   &self.get_back(len)[..len] == marker_str
  }
 
- /// Sets pos to find position + 1 if the byte was found in the available bytes.
- /// If nothing was found pos remains unaltered.
+ /// Convenience method, calls self.slurp_find_repos(bytecount, e, FindPos::End).
  pub fn slurp_find_repos1(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp_find_repos(bytecount, e, FindPos::End)
  }
 
- /// Sets pos to find position if the byte was found in the available bytes.
- /// If nothing was found pos remains unaltered.
+ /// Convenience method, calls self.slurp_find_repos(bytecount, e, FindPos::Begin).
  pub fn slurp_find_repos0(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp_find_repos(bytecount, e, FindPos::Begin)
  }
-
+ 
+ /// Slurps bytecount bytes.
  /// Sets pos regarding the fp flag if the byte was found in the available bytes.
  /// If nothing was found pos remains unaltered.
+ /// Returns true if something was found, false otherwise.
  pub fn slurp_find_repos(
   &mut self,
   bytecount: usize,
@@ -318,10 +319,11 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
- /// Sets pos regarding the fp flag if one of the the bytes was found in the available bytes.
+ /// Slurps bytecount bytes.
+ /// Sets pos regarding the fp flag if the byte was found in the available bytes.
+ /// Finds the nearest byte if cut is false, otherwise stops iterating over se if the current byte was found.
  /// If nothing was found pos remains unaltered.
- /// Finds the nearest byte if cut is false.
- /// The parameter cut stops searching if a byte was found.
+ /// Returns true if something was found, false otherwise.
  pub fn slurp_find_multiple_repos(
   &mut self,
   bytecount: usize,
@@ -360,11 +362,11 @@ impl<'a> BlockWiseReader<'a> {
   }
  }
 
- /// Sets pos regarding the fp flag if one of the the bytes was found in the available bytes.
+ /// Slurps bytecount bytes.
+ /// Sets pos regarding the fp flag if the byte was found in the available bytes.
+ /// Finds the nearest byte if cut is false, otherwise stops iterating over se if the current byte was found.
  /// If nothing was found pos remains unaltered.
- /// Finds the nearest byte if cut is false.
- /// The parameter cut stops searching if a byte was found.
- /// Returns the idx of the matched pattern.
+ /// Returns the index of se if something was found.
  pub fn slurp_find_multiple_repos_idx(
   &mut self,
   bytecount: usize,
@@ -412,8 +414,7 @@ impl<'a> BlockWiseReader<'a> {
   self.pos
  }
 
- /// Sets pos to find position if the byte slice was found in the available bytes.
- /// If nothing was found pos remains unaltered.
+ /// Convenience method, calls self.slurp_search_repos(bytecount, bytes, FindPos::Begin).
  pub fn slurp_search_repos0(
   &mut self,
   bytecount: usize,
@@ -422,8 +423,7 @@ impl<'a> BlockWiseReader<'a> {
   self.slurp_search_repos(bytecount, bytes, FindPos::Begin)
  }
 
- /// Sets pos after find position if the byte slice was found in the available bytes.
- /// If nothing was found pos remains unaltered.
+ /// Convenience method, calls self.slurp_search_repos(bytecount, bytes, FindPos::End).
  pub fn slurp_search_repos1(
   &mut self,
   bytecount: usize,
@@ -432,8 +432,10 @@ impl<'a> BlockWiseReader<'a> {
   self.slurp_search_repos(bytecount, bytes, FindPos::End)
  }
 
- /// Sets pos regarding the fp flag find position if the byte slice was found in the available bytes.
+ /// Slurps bytecount bytes.
+ /// Sets pos regarding the fp flag if the byte slice was found in the available bytes.
  /// If nothing was found pos remains unaltered.
+ /// Returns true if something was found, false otherwise.
  pub fn slurp_search_repos(
   &mut self,
   bytecount: usize,
@@ -454,11 +456,11 @@ impl<'a> BlockWiseReader<'a> {
   })
  }
 
- /// Sets pos regarding the fp flag if one of the the bytes was found in the available bytes.
+ /// Slurps bytecount bytes.
+ /// Sets pos regarding the fp flag if the byte slice was found in the available bytes.
+ /// Finds the nearest byte slice if cut is false, otherwise stops iterating over sbytes if the current byte slice was found.
  /// If nothing was found pos remains unaltered.
- /// Finds the nearest byte slice if cut is false.
- /// The parameter cut stops searching if a byte slice was found.
- /// Returns the idx of the matched pattern.
+ /// Returns the index of sbytes if something was found.
  pub fn slurp_search_multiple_repos_idx(
   &mut self,
   bytecount: usize,
@@ -501,7 +503,7 @@ impl<'a> BlockWiseReader<'a> {
   }
  }
 
- /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the char was found.
+ /// Applies self.slurp_find_repos in a loop up to end of file or the pattern was found.
  pub fn slurp_find_repos_loop(
   &mut self,
   buffersize: usize,
@@ -526,7 +528,7 @@ impl<'a> BlockWiseReader<'a> {
   }
  }
 
- /// Reads bytes from the stream in buffersize steps as long as there are bytes available to the point where the byte slice was found.
+ /// Applies self.slurp_search_repos in a loop up to end of file or the pattern was found.
  /// The buffer must be bigger than the byte slice.
  pub fn slurp_search_repos_loop(
   &mut self,
@@ -558,6 +560,38 @@ impl<'a> BlockWiseReader<'a> {
   }
  }
 
+ /// Applies self.slurp_find_multiple_repos_idx in a loop up to end of file or the pattern was found.
+ /// The buffer must be bigger than the byte slice.
+ pub fn slurp_find_multiple_repos_loop_idx(
+  &mut self,
+  buffersize: usize,
+  se: &[u8],
+  cut: bool,
+  fp: FindPos,
+ ) -> Result<Option<PatternIdx>, Error> {
+  if 0 == buffersize {
+   return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
+  }
+  let oldpos = self.pos;
+  let mut offset = 0;
+  loop {
+   if let Some(pattern_idx) =
+    self.slurp_find_multiple_repos_idx(buffersize + offset, se, cut, fp)?
+   {
+    return Ok(Some(pattern_idx));
+   } else {
+    if self.eof {
+     self.pos = oldpos;
+     return Ok(None);
+    } else {
+     self.pos_add(self.available_bytes());
+    }
+   }
+  }
+ }
+
+ /// Applies self.slurp_search_multiple_repos_idx in a loop up to end of file or the pattern was found.
+ /// The buffer must be bigger than the byte slice.
  pub fn slurp_search_multiple_repos_loop_idx(
   &mut self,
   buffersize: usize,
