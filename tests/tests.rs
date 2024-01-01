@@ -601,4 +601,28 @@ nameserver 8.8.8.8
  fn test_slurp_find_multiple_repos_loop_idx_004() -> Result<(), Error> {
   slurp_find_multiple_repos_loop_idx_tests(true, FindPos::End)
  }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_loop_idx_005() {
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   match bwr.slurp_find_multiple_repos_loop_idx(i, &[], false, FindPos::Begin) {
+    Ok(None) => {}
+    Ok(_) => panic!(),
+    Err(_) => panic!(),
+   }
+   assert_eq!(0, bwr.pos_get());
+  }
+  for i in 1..7 {
+   let sr = StringReader::new("123456");
+   let mut bwr = BlockWiseReader::new(Box::new(sr));
+   match bwr.slurp_find_multiple_repos_loop_idx(i, &[b'a', b'b'], false, FindPos::Begin) {
+    Ok(None) => {}
+    Ok(_) => panic!(),
+    Err(_) => panic!(),
+   }
+   assert_eq!(0, bwr.pos_get());
+  }
+ }
 }
