@@ -477,7 +477,7 @@ impl<'a> BlockWiseReader<'a> {
   let mut foundpos: Option<Finding> = None;
   // TODO optimization : shorter search if previously found something
   for (idx, bytes) in sbytes.iter().enumerate() {
-   if self.slurp_search_repos(bytecount, *bytes, FindPos::Begin)? {
+   if self.slurp_search_repos(bytecount, bytes, FindPos::Begin)? {
     let finding = Finding {
      pi: PatternIdx { idx },
      bi: BufferIdx { idx: self.pos },
@@ -520,13 +520,12 @@ impl<'a> BlockWiseReader<'a> {
   loop {
    if self.slurp_find_repos(buffersize, e, fp)? {
     return Ok(true);
+   }
+   if self.eof {
+    self.pos = oldpos;
+    return Ok(false);
    } else {
-    if self.eof {
-     self.pos = oldpos;
-     return Ok(false);
-    } else {
-     self.pos_add(self.available_bytes());
-    }
+    self.pos_add(self.available_bytes());
    }
   }
  }
@@ -550,15 +549,14 @@ impl<'a> BlockWiseReader<'a> {
   loop {
    if self.slurp_search_repos(buffersize + offset, bytes, fp)? {
     return Ok(true);
+   }
+   if self.eof {
+    self.pos = oldpos;
+    return Ok(false);
    } else {
-    if self.eof {
-     self.pos = oldpos;
-     return Ok(false);
-    } else {
-     self.pos_add(self.available_bytes());
-     offset = bytes.len() - 1;
-     self.pos_sub(offset);
-    }
+    self.pos_add(self.available_bytes());
+    offset = bytes.len() - 1;
+    self.pos_sub(offset);
    }
   }
  }
@@ -582,13 +580,12 @@ impl<'a> BlockWiseReader<'a> {
     self.slurp_find_multiple_repos_idx(buffersize + offset, se, cut, fp)?
    {
     return Ok(Some(pattern_idx));
+   }
+   if self.eof {
+    self.pos = oldpos;
+    return Ok(None);
    } else {
-    if self.eof {
-     self.pos = oldpos;
-     return Ok(None);
-    } else {
-     self.pos_add(self.available_bytes());
-    }
+    self.pos_add(self.available_bytes());
    }
   }
  }
@@ -606,12 +603,12 @@ impl<'a> BlockWiseReader<'a> {
   if 0 == buffersize {
    return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
   }
-  if 0 == sbytes.len() {
+  if sbytes.is_empty() {
    return Err(Error::Msg("sbytes must not be of length 0"));
   }
   let mut max_bytes_len: usize = 0;
   for bytes in sbytes {
-   if 0 == bytes.len() {
+   if bytes.is_empty() {
     return Err(Error::Msg("every byte slice must not be of length 0"));
    }
    max_bytes_len = max(max_bytes_len, bytes.len());
@@ -626,15 +623,14 @@ impl<'a> BlockWiseReader<'a> {
     self.slurp_search_multiple_repos_idx(buffersize + offset, sbytes, cut, fp)?
    {
     return Ok(Some(pattern_idx));
+   }
+   if self.eof {
+    self.pos = oldpos;
+    return Ok(None);
    } else {
-    if self.eof {
-     self.pos = oldpos;
-     return Ok(None);
-    } else {
-     self.pos_add(self.available_bytes());
-     offset = max_bytes_len - 1;
-     self.pos_sub(offset);
-    }
+    self.pos_add(self.available_bytes());
+    offset = max_bytes_len - 1;
+    self.pos_sub(offset);
    }
   }
  }
