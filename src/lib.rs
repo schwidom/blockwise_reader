@@ -154,6 +154,9 @@ impl<'a> BlockWiseReader<'a> {
  /// bytes available. It can also happen that it reads lesser than needed if it encounters an end of file.
  /// Returns the amount of available bytes starting at pos.
  pub fn slurp(&mut self, bytecount: usize) -> Result<usize, std::io::Error> {
+  if 0 == bytecount {
+   return Ok(self.available_bytes());
+  }
   let pos = self.pos;
   let read_start = self.v.len();
   if read_start >= pos + bytecount {
@@ -294,7 +297,7 @@ impl<'a> BlockWiseReader<'a> {
  pub fn slurp_find_repos0(&mut self, bytecount: usize, e: u8) -> Result<bool, std::io::Error> {
   self.slurp_find_repos(bytecount, e, FindPos::Begin)
  }
- 
+
  /// Slurps bytecount bytes.
  /// Sets pos regarding the fp flag if the byte was found in the available bytes.
  /// If nothing was found pos remains unaltered.
@@ -599,11 +602,18 @@ impl<'a> BlockWiseReader<'a> {
   cut: bool,
   fp: FindPos,
  ) -> Result<Option<PatternIdx>, Error> {
+  // TODO : in 2.x : allow empty sbytes and empty slices in sbytes
   if 0 == buffersize {
    return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
   }
+  if 0 == sbytes.len() {
+   return Err(Error::Msg("sbytes must not be of length 0"));
+  }
   let mut max_bytes_len: usize = 0;
   for bytes in sbytes {
+   if 0 == bytes.len() {
+    return Err(Error::Msg("every byte slice must not be of length 0"));
+   }
    max_bytes_len = max(max_bytes_len, bytes.len());
    if buffersize <= bytes.len() {
     return Err(Error::Msg("error: buffersize <= bytes.len()"));

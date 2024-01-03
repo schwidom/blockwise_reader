@@ -16,6 +16,7 @@ mod tests {
   assert_eq!(None, bwr.find(b'1'));
   assert_eq!(None, bwr.search(&[b'1']));
   assert_eq!("".as_bytes(), bwr.get());
+  assert_eq!(0, bwr.slurp(0)?);
   assert_eq!(3, bwr.slurp(1000)?);
   assert_eq!(Some(0), bwr.find(b'1'));
   assert_eq!(Some(0), bwr.search(&[b'1']));
@@ -317,6 +318,23 @@ nameserver 8.8.8.8
   slurp_find_multiple_repos_tests(true, FindPos::End)
  }
 
+ #[test]
+ fn test_slurp_find_multiple_repos_005() {
+  for se in [&[] as &[u8], &[b'a'], &[b'a', b'b']] {
+   for i in 1..7 {
+    let sr = StringReader::new("123456");
+    let mut bwr = BlockWiseReader::new(Box::new(sr));
+    let res = bwr.slurp_find_multiple_repos(i, se, false, FindPos::Begin);
+    match res {
+     Ok(false) => {}
+     Ok(_) => panic!(),
+     Err(_) => panic!(),
+    }
+    assert_eq!(0, bwr.pos_get());
+   }
+  }
+ }
+
  fn slurp_find_multiple_repos_idx_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
   for i in 1..7 {
    let sr = StringReader::new("123456");
@@ -375,6 +393,23 @@ nameserver 8.8.8.8
  #[test]
  fn test_slurp_find_multiple_repos_idx_004() -> Result<(), Error> {
   slurp_find_multiple_repos_idx_tests(true, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_find_multiple_repos_idx_005() {
+  for se in [&[] as &[u8], &[b'a'], &[b'a', b'b']] {
+   for i in 1..7 {
+    let sr = StringReader::new("123456");
+    let mut bwr = BlockWiseReader::new(Box::new(sr));
+    let res = bwr.slurp_find_multiple_repos_idx(i, se, false, FindPos::Begin);
+    match res {
+     Ok(None) => {}
+     Ok(_) => panic!(),
+     Err(_) => panic!(),
+    }
+    assert_eq!(0, bwr.pos_get());
+   }
+  }
  }
 
  fn slurp_search_multiple_repos_idx_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
@@ -437,6 +472,27 @@ nameserver 8.8.8.8
  #[test]
  fn test_slurp_search_multiple_repos_idx_004() -> Result<(), Error> {
   slurp_search_multiple_repos_idx_tests(true, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_idx_005() {
+  for sbytes in [
+   &[] as &[&[u8]],
+   &["ab".as_bytes()],
+   &["ab".as_bytes(), "cd".as_bytes()],
+  ] {
+   for i in 1..7 {
+    let sr = StringReader::new("123456");
+    let mut bwr = BlockWiseReader::new(Box::new(sr));
+    let res = bwr.slurp_search_multiple_repos_idx(i, sbytes, false, FindPos::Begin);
+    match res {
+     Ok(None) => {}
+     Ok(_) => panic!(),
+     Err(_) => panic!(),
+    }
+    assert_eq!(0, bwr.pos_get());
+   }
+  }
  }
 
  fn slurp_search_multiple_repos_loop_idx_tests(cut: bool, fp: FindPos) {
@@ -524,6 +580,58 @@ nameserver 8.8.8.8
  #[test]
  fn test_slurp_search_multiple_repos_loop_idx_004() {
   slurp_search_multiple_repos_loop_idx_tests(true, FindPos::End)
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_005() {
+  // &[] not possible
+  // see test_slurp_search_multiple_repos_idx_005
+  for sbytes in [
+   &["ab".as_bytes()] as &[&[u8]],
+   &["ab".as_bytes(), "cd".as_bytes()],
+  ] {
+   for i in 3..7 {
+    let sr = StringReader::new("123456");
+    let mut bwr = BlockWiseReader::new(Box::new(sr));
+    let res = bwr.slurp_search_multiple_repos_loop_idx(i, sbytes, false, FindPos::Begin);
+    match res {
+     Ok(None) => {}
+     Ok(_) => panic!(),
+     Err(_) => panic!(),
+    }
+    assert_eq!(0, bwr.pos_get());
+   }
+  }
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_006() {
+  let sr = StringReader::new("123456");
+  let mut bwr = BlockWiseReader::new(Box::new(sr));
+  let res = bwr.slurp_search_multiple_repos_loop_idx(1, &["".as_bytes()], false, FindPos::Begin);
+  assert_eq!(0, bwr.pos_get());
+  match res {
+   Ok(_) => panic!(),
+   Err(Error::Msg(err)) => {
+    assert_eq!(err, "every byte slice must not be of length 0");
+   }
+   Err(_) => panic!(),
+  }
+ }
+
+ #[test]
+ fn test_slurp_search_multiple_repos_loop_idx_007() {
+  let sr = StringReader::new("123456");
+  let mut bwr = BlockWiseReader::new(Box::new(sr));
+  let res = bwr.slurp_search_multiple_repos_loop_idx(1, &[], false, FindPos::Begin);
+  assert_eq!(0, bwr.pos_get());
+  match res {
+   Ok(_) => panic!(),
+   Err(Error::Msg(err)) => {
+    assert_eq!(err, "sbytes must not be of length 0");
+   }
+   Err(_) => panic!(),
+  }
  }
 
  fn slurp_find_multiple_repos_loop_idx_tests(cut: bool, fp: FindPos) -> Result<(), Error> {
