@@ -298,22 +298,22 @@ nameserver 8.8.8.8
  }
 
  #[test]
- fn test_00e() -> Result<(), Error> {
+ fn test_slurp_find_multiple_repos_001() -> Result<(), Error> {
   slurp_find_multiple_repos_tests(false, FindPos::Begin)
  }
 
  #[test]
- fn test_00e_3() -> Result<(), Error> {
+ fn test_slurp_find_multiple_repos_002() -> Result<(), Error> {
   slurp_find_multiple_repos_tests(false, FindPos::End)
  }
 
  #[test]
- fn test_00e_2() -> Result<(), Error> {
+ fn test_slurp_find_multiple_repos_003() -> Result<(), Error> {
   slurp_find_multiple_repos_tests(true, FindPos::Begin)
  }
 
  #[test]
- fn test_00e_4() -> Result<(), Error> {
+ fn test_slurp_find_multiple_repos_004() -> Result<(), Error> {
   slurp_find_multiple_repos_tests(true, FindPos::End)
  }
 
