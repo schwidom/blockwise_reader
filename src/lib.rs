@@ -602,7 +602,7 @@ impl<'a> BlockWiseReader<'a> {
   cut: bool,
   fp: FindPos,
  ) -> Result<Option<PatternIdx>, Error> {
-  // TODO : in 2.x : allow empty sbytes and empty slices in sbytes
+  // TODO : in 1.x : allow empty sbytes and empty slices in sbytes
   if 0 == buffersize {
    return Err(Error::Msg("buffersize 0 leads to an infinite loop"));
   }
